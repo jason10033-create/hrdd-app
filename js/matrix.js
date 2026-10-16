@@ -94,7 +94,7 @@
     });
 
     // Points sit exactly on their (S, P) coordinates. Items sharing the same coordinate are drawn as one
-    // highlighted cluster marker (×n + red badge); clicking it lists the items (data-qs).
+    // highlighted cluster marker (×n); clicking it lists the items (data-qs).
     const groups = [];
     (o.points || []).forEach(p => {
       const k = (+p.s).toFixed(2) + '|' + (+p.p).toFixed(2);
@@ -116,8 +116,6 @@
       g += `<circle cx="${x}" cy="${y}" r="${R + 5}" fill="none" stroke="#C0392B" stroke-width="2" stroke-dasharray="4 2.5"/>`;
       g += `<circle cx="${x}" cy="${y}" r="${R + 1}" fill="#B9461B" stroke="${hi ? '#1f2a33' : '#ffffff'}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
       g += `<text x="${x}" y="${(gr.y + 4.2).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff" pointer-events="none">×${n}</text>`;
-      g += `<circle cx="${(gr.x + R + 2).toFixed(1)}" cy="${(gr.y - R - 2).toFixed(1)}" r="7.5" fill="#C0392B" stroke="#ffffff" stroke-width="1.5"/>`;
-      g += `<text x="${(gr.x + R + 2).toFixed(1)}" y="${(gr.y - R + 1.5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff" pointer-events="none">${n}</text>`;
       if (o.clusterLabels) {
         // static exports cannot be clicked, so spell out the item numbers next to the cluster
         const tw = nos.length * 7 + 12, lx = Math.min(gr.x + R + 8, ml + plot - tw), ly = gr.y + R + 4;
