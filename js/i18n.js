@@ -123,6 +123,7 @@
     ['dash.spread', '意見分歧', '意见分歧', 'Divergent views'],
     ['dash.adjusted', '含調整後數值', '含调整后数值', 'Includes adjusted values'],
     ['dash.reused', '沿用 2025 MHQ 調查結果', '沿用 2025 MHQ 调查结果', 'Reusing 2025 MHQ results'],
+    ['dash.sameCoord', '此座標有多個項目', '此坐标有多个项目', 'Multiple items at this point'],
     ['dash.otherRbu', 'RBU 其他區域', 'RBU 其他区域', 'Other RBU regions'],
 
     // risk management

@@ -154,7 +154,7 @@
       steps() { return ['dd.step.info', 'dd.step.p', 'dd.step.s', 'dd.step.comment', 'dd.step.review']; },
       svg() {
         const pts = this.qs.map(q => ({ no: q.no, id: q.id, p: this.f.answers[q.id].p || 0, s: this.f.answers[q.id].s || 0, tip: HRDD_H.tx(q.short) }));
-        return HRDD_MATRIX.renderSVG({ points: pts, zones: S.cfg.topic.zones, colors: S.cfg.topic.zoneColors, zoneLabels: { H: HRDD_H.zoneLabel('H'), M: HRDD_H.zoneLabel('M'), L: HRDD_H.zoneLabel('L') }, xLabel: HRDD_H.t('dash.sev'), yLabel: HRDD_H.t('dash.prob'), width: 520 });
+        return HRDD_MATRIX.renderSVG({ points: pts, zones: S.cfg.topic.zones, colors: S.cfg.topic.zoneColors, zoneLabels: { H: HRDD_H.zoneLabel('H'), M: HRDD_H.zoneLabel('M'), L: HRDD_H.zoneLabel('L') }, xLabel: HRDD_H.t('dash.sev'), yLabel: HRDD_H.t('dash.prob'), width: 520, clusterLabels: true });
       }
     },
     watch: { f: { deep: true, handler() { try { localStorage.setItem(this.draftKey(), JSON.stringify(this.f)); } catch (e) {} } } },

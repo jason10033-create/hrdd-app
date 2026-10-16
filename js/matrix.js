@@ -93,36 +93,38 @@
       g += `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#46525c">${c.no}</text></g>`;
     });
 
-    // collision relaxation so overlapping numbers stay readable
-    const pts = (o.points || []).map((p, i) => ({ ...p, x0: X(p.s), y0: Y(p.p), x: X(p.s), y: Y(p.p), i }));
-    for (let it = 0; it < 80; it++) {
-      let moved = false;
-      for (let a = 0; a < pts.length; a++) for (let b = a + 1; b < pts.length; b++) {
-        const A = pts[a], B = pts[b];
-        let dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy);
-        const min = 2 * R + 2;
-        if (d < min) {
-          if (d < 0.01) { const ang = (b * 2.39996); dx = Math.cos(ang); dy = Math.sin(ang); d = 1; }
-          const push = (min - d) / 2;
-          A.x -= dx / d * push; A.y -= dy / d * push; B.x += dx / d * push; B.y += dy / d * push; moved = true;
-        }
-      }
-      // spring back toward true position
-      pts.forEach(p => { p.x += (p.x0 - p.x) * 0.02; p.y += (p.y0 - p.y) * 0.02; });
-      if (!moved && it > 5) break;
-    }
-    pts.forEach(p => {
-      p.x = Math.max(ml + R, Math.min(ml + plot - R, p.x)); p.y = Math.max(mt + R, Math.min(mt + plot - R, p.y));
-      if (Math.hypot(p.x - p.x0, p.y - p.y0) > 4) {
-        g += `<line x1="${p.x0.toFixed(1)}" y1="${p.y0.toFixed(1)}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="#46525c" stroke-width="1"/>`;
-        g += `<circle cx="${p.x0.toFixed(1)}" cy="${p.y0.toFixed(1)}" r="2.2" fill="#46525c"/>`;
-      }
+    // Points sit exactly on their (S, P) coordinates. Items sharing the same coordinate are drawn as one
+    // highlighted cluster marker (×n + red badge); clicking it lists the items (data-qs).
+    const groups = [];
+    (o.points || []).forEach(p => {
+      const k = (+p.s).toFixed(2) + '|' + (+p.p).toFixed(2);
+      let gr = groups.find(x => x.k === k);
+      if (!gr) { gr = { k, x: X(p.s), y: Y(p.p), items: [] }; groups.push(gr); }
+      gr.items.push(p);
     });
-    pts.forEach(p => {
-      const hi = o.highlight === p.id;
-      g += `<g class="pt" data-q="${p.id}" style="cursor:pointer"><title>${esc(p.tip || '')}</title>`;
-      g += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${hi ? R + 3 : R}" fill="#E8762D" stroke="${hi ? '#1f2a33' : '#ffffff'}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
-      g += `<text x="${p.x.toFixed(1)}" y="${(p.y + 4.2).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff" pointer-events="none">${p.no}</text></g>`;
+    groups.forEach(gr => {
+      const x = gr.x.toFixed(1), y = gr.y.toFixed(1);
+      if (gr.items.length === 1) {
+        const p = gr.items[0], hi = o.highlight === p.id;
+        g += `<g class="pt" data-q="${p.id}" style="cursor:pointer"><title>${esc(p.tip || '')}</title>`;
+        g += `<circle cx="${x}" cy="${y}" r="${hi ? R + 3 : R}" fill="#E8762D" stroke="${hi ? '#1f2a33' : '#ffffff'}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
+        g += `<text x="${x}" y="${(gr.y + 4.2).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff" pointer-events="none">${p.no}</text></g>`;
+        return;
+      }
+      const hi = gr.items.some(p => p.id === o.highlight), n = gr.items.length, nos = gr.items.map(p => p.no).join('·');
+      g += `<g class="pt cluster" data-qs="${gr.items.map(p => p.id).join(',')}" style="cursor:pointer"><title>${esc(gr.items.map(p => p.tip || p.no).join('\n'))}</title>`;
+      g += `<circle cx="${x}" cy="${y}" r="${R + 5}" fill="none" stroke="#C0392B" stroke-width="2" stroke-dasharray="4 2.5"/>`;
+      g += `<circle cx="${x}" cy="${y}" r="${R + 1}" fill="#B9461B" stroke="${hi ? '#1f2a33' : '#ffffff'}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
+      g += `<text x="${x}" y="${(gr.y + 4.2).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff" pointer-events="none">×${n}</text>`;
+      g += `<circle cx="${(gr.x + R + 2).toFixed(1)}" cy="${(gr.y - R - 2).toFixed(1)}" r="7.5" fill="#C0392B" stroke="#ffffff" stroke-width="1.5"/>`;
+      g += `<text x="${(gr.x + R + 2).toFixed(1)}" y="${(gr.y - R + 1.5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff" pointer-events="none">${n}</text>`;
+      if (o.clusterLabels) {
+        // static exports cannot be clicked, so spell out the item numbers next to the cluster
+        const tw = nos.length * 7 + 12, lx = Math.min(gr.x + R + 8, ml + plot - tw), ly = gr.y + R + 4;
+        g += `<rect x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" width="${tw}" height="18" rx="4" fill="#ffffff" stroke="#C0392B"/>`;
+        g += `<text x="${(lx + tw / 2).toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#C0392B" pointer-events="none">${nos}</text>`;
+      }
+      g += '</g>';
     });
 
     if (o.legend) {

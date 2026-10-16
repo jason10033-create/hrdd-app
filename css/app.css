@@ -166,3 +166,6 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: #F
 .empty { padding: 30px; text-align: center; color: var(--muted); }
 .hint { background: var(--brand-soft); border-radius: 8px; padding: 10px 14px; color: #174f4b; font-size: 13px; }
 .ok-banner { background: #EAF7EF; color: #1d6b40; border-radius: 8px; padding: 14px 16px; font-weight: 500; }
+.pickpop { position: absolute; z-index: 5; background: #fff; border: 2px solid var(--danger); border-radius: 8px; box-shadow: 0 6px 18px rgba(16,24,40,.18); padding: 8px 10px; min-width: 200px; }
+.pickrow { display: flex; align-items: center; padding: 4px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.pickrow:hover { background: var(--brand-soft); }

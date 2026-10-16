@@ -23,10 +23,10 @@
   /* ---------------- Dashboard ---------------- */
   C.DashboardView = {
     data() {
-      return { scope: H.isAdmin() ? 'RBU' : (S.session && S.session.unit) || 'RBU', stat: 'mean', compare: '', off: {}, focus: null, data: null, loading: true };
+      return { scope: H.isAdmin() ? 'RBU' : (S.session && S.session.unit) || 'RBU', stat: 'mean', compare: '', off: {}, focus: null, pick: null, data: null, loading: true };
     },
     created() { this.load(); },
-    watch: { 'S.cycle'() { this.load(); }, scope() { this.off = {}; this.focus = null; } },
+    watch: { 'S.cycle'() { this.load(); }, scope() { this.off = {}; this.focus = null; this.pick = null; }, stat() { this.pick = null; } },
     computed: {
       qs() { return H.questions(); },
       scopes() { return H.allowedScopes(); },
@@ -71,13 +71,24 @@
     },
     methods: {
       async load() { this.loading = true; try { this.data = await loadData(S.cycle); } catch (e) { H.toast(e.message || 'Error'); } this.loading = false; },
-      clickSvg(e) { const g = e.target.closest('.pt'); if (g) this.focus = this.focus === g.dataset.q ? null : g.dataset.q; },
+      clickSvg(e) {
+        const g = e.target.closest('.pt');
+        if (!g) { this.pick = null; return; }
+        if (g.dataset.qs) {
+          const box = e.currentTarget.getBoundingClientRect(), r = g.getBoundingClientRect();
+          this.pick = { qs: g.dataset.qs.split(','), left: r.right - box.left + 6, top: r.top - box.top };
+          return;
+        }
+        this.pick = null; this.focus = this.focus === g.dataset.q ? null : g.dataset.q;
+      },
+      pickItems() { return this.pick ? this.items.filter(i => this.pick.qs.includes(i.id)) : []; },
+      choose(id) { this.focus = id; this.pick = null; },
       only(id) { const o = {}; this.all.forEach(r => { if (r._id !== id) o[r._id] = true; }); this.off = o; },
       toggle(id) { this.off = Object.assign({}, this.off, { [id]: !this.off[id] }); },
       title() { return `${H.t('dash.matrix')} – ${H.unitName(this.scope)} ${S.cycle}`; },
       legend() { return this.items.map(i => ({ no: i.no, name: H.tx(i.q.short) })); },
       exportSvgString() {
-        return M.renderSVG({ points: this.items, compare: this.cmpItems, zones: S.cfg.topic.zones, colors: S.cfg.topic.zoneColors, zoneLabels: ZL(), xLabel: H.t('dash.sev'), yLabel: H.t('dash.prob'), width: 760, title: this.title(), legend: this.legend() });
+        return M.renderSVG({ points: this.items, compare: this.cmpItems, zones: S.cfg.topic.zones, colors: S.cfg.topic.zoneColors, zoneLabels: ZL(), xLabel: H.t('dash.sev'), yLabel: H.t('dash.prob'), width: 760, title: this.title(), legend: this.legend(), clusterLabels: true });
       },
       fname(ext) { return `risk-matrix_${this.scope}_${S.cycle}_${H.stamp()}.${ext}`; },
       async png() { M.download(await M.svgToPng(this.exportSvgString(), 2), this.fname('png')); },
@@ -119,7 +130,9 @@
           <div class="card">
             <div class="row"><h2 class="grow" style="margin:0">{{t('dash.matrix')}} · {{H.unitName(scope)}}</h2>
               <span v-if="hasAdjusted" class="badge t-2">{{t('dash.adjusted')}}</span></div>
-            <div class="matrixbox" v-html="svg" @click="clickSvg" style="margin-top:8px"></div>
+            <div style="position:relative;margin-top:8px"><div class="matrixbox" v-html="svg" @click="clickSvg"></div>
+              <div v-if="pick" class="pickpop" :style="{left: Math.min(pick.left, 420)+'px', top: pick.top+'px'}"><div class="small muted" style="margin-bottom:4px">{{t('dash.sameCoord')}} (P {{H.fmt(pickItems()[0] && pickItems()[0].p)}} / S {{H.fmt(pickItems()[0] && pickItems()[0].s)}})</div>
+                <div v-for="i in pickItems()" :key="i.id" class="pickrow" @click="choose(i.id)"><span class="qno">{{i.no}}</span>{{tx(i.q.short)}}</div></div></div>
             <div class="legend"><div v-for="i in items" :key="i.id" @click="focus=i.id"><span class="qno">{{i.no}}</span>{{tx(i.q.short)}}</div></div>
             <div class="row" style="margin-top:12px"><button class="btn sm" @click="xlsx">⬇ {{t('dash.exportXlsx')}}</button><button class="btn sm" @click="png">⬇ {{t('dash.exportPng')}}</button><button class="btn sm" @click="svgFile">⬇ {{t('dash.exportSvg')}}</button></div>
           </div>
