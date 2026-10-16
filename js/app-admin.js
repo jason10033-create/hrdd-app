@@ -56,7 +56,6 @@
           <ml-input v-model="l.label"></ml-input><ml-input v-model="l.desc"></ml-input><ml-input v-model="l.detail"></ml-input></div>
         <h3>{{t('dash.sev')}}</h3><div v-for="l in tp.scale.s" :key="'s'+l.level" class="qedit"><b>{{l.level}}</b><ml-input v-model="l.label"></ml-input><ml-input v-model="l.desc"></ml-input></div>
         <label class="f">sDesc</label><ml-input v-model="tp.scale.sDesc"></ml-input>
-        <h3>options</h3><div v-for="(o,i) in tp.scale.options" :key="i" style="margin-bottom:6px"><ml-input v-model="tp.scale.options[i]"></ml-input></div>
       </div></div>`
   };
 
@@ -182,7 +181,7 @@
       link(u) { return location.href.split('#')[0] + '#/login/' + u; },
       async copy(u) { try { await navigator.clipboard.writeText(this.link(u)); H.toast('✓ ' + this.link(u)); } catch (e) { H.toast(this.link(u)); } },
       async setPw(u) {
-        const v = this.pw[u] || ''; if (v.length < 8) { H.toast('≥ 8'); return; }
+        const v = this.pw[u] || ''; if (!v) return;
         try { await S.store.setPassword(u, v); this.pw[u] = ''; H.toast(H.t('adm.pwdChanged')); } catch (e) { H.toast(e.message || 'Error'); }
       }
     },
@@ -196,7 +195,7 @@
         <table class="t"><thead><tr><th></th><th>{{t('adm.pageLink')}}</th><th>{{t('adm.setPassword')}}</th><th></th></tr></thead>
           <tbody><tr v-for="u in pwUnits" :key="u"><td style="width:140px"><b>{{u==='ADMIN' ? t('common.admin') : H.unitName(u)}}</b></td>
           <td class="small"><a :href="link(u)" target="_blank" style="word-break:break-all">{{link(u)}}</a> <button class="btn sm" @click="copy(u)">{{t('adm.copy')}}</button></td>
-          <td><input class="input" type="password" autocomplete="new-password" v-model="pw[u]" placeholder="≥ 8"></td><td style="width:90px"><button class="btn" @click="setPw(u)">{{t('common.save')}}</button></td></tr></tbody></table></div></div>`
+          <td><input class="input" type="password" autocomplete="new-password" v-model="pw[u]"></td><td style="width:90px"><button class="btn" @click="setPw(u)">{{t('common.save')}}</button></td></tr></tbody></table></div></div>`
   };
 
   /* ---- recommendation library ---- */

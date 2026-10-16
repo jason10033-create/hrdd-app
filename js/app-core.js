@@ -199,7 +199,7 @@
         <h2>{{ step===1 ? t('dd.step.p') : t('dd.step.s') }}</h2>
         <p class="muted">{{ step===1 ? t('dd.pStepHint') : t('dd.sStepHint') }}</p>
         <def-tables :which="step===1?'p':'s'"></def-tables>
-        <table class="mtx" style="margin-top:14px"><thead><tr><th style="text-align:left">{{t('dash.item')}}</th><th v-for="(o,i) in S.cfg.topic.scale.options" :key="i">{{tx(o)}}</th></tr></thead>
+        <table class="mtx" style="margin-top:14px"><thead><tr><th style="text-align:left">{{t('dash.item')}}</th><th v-for="l in S.cfg.topic.scale[step===1?'p':'s']" :key="l.level">{{l.level}}: {{tx(l.label)}}</th></tr></thead>
           <tbody><tr v-for="q in qs" :key="q.id" :class="{miss: tried && !f.answers[q.id][step===1?'p':'s']}">
             <td class="q"><div class="cat">【{{tx(q.cat)}}】</div><div style="display:flex"><span class="qno">{{q.no}}</span><span>{{tx(q.text)}} <span class="req">*</span></span></div></td>
             <td v-for="v in 5" :key="v" class="opt"><button class="radio" :class="{on: f.answers[q.id][step===1?'p':'s']===v}" :title="lvlLabel(step===1?'p':'s', v)" @click="f.answers[q.id][step===1?'p':'s']=v">{{v}}</button></td>
