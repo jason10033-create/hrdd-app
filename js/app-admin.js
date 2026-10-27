@@ -134,7 +134,7 @@
     data() { return { ov: H.clone(S.cfg.i18n || {}), q: '' }; },
     computed: {
       keys() {
-        const pre = this.kind === 'texts-rm' ? ['nav.', 'dash.', 'rm.'] : ['app.', 'nav.', 'common.', 'dd.', 'imp.'];
+        const pre = this.kind === 'texts-rm' ? ['nav.', 'dash.', 'rm.'] : ['app.', 'home.', 'nav.', 'common.', 'dd.', 'imp.'];
         return Object.keys(window.HRDD_I18N).filter(k => pre.some(p => k.startsWith(p)))
           .filter(k => !this.q || (k + JSON.stringify(window.HRDD_I18N[k]) + JSON.stringify(this.ov[k] || '')).toLowerCase().includes(this.q.toLowerCase()));
       }

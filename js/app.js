@@ -7,8 +7,8 @@
     data() { return { LANGS: H.LANGS }; },
     computed: {
       parts() { return S.route.split('/').filter(Boolean); },
-      sec() { const p = this.parts[0]; return p === 'admin' ? 'admin' : ['dashboard', 'inventory', 'actions', 'overview'].includes(p) ? 'rm' : p === 'login' ? 'login' : 'dd'; },
-      page() { return this.parts[0] || 'survey'; },
+      sec() { const p = this.parts[0] || 'home'; return p === 'home' ? 'home' : p === 'admin' ? 'admin' : ['dashboard', 'inventory', 'actions', 'overview'].includes(p) ? 'rm' : p === 'login' ? 'login' : 'dd'; },
+      page() { return this.parts[0] || 'home'; },
       needLogin() { return ['rm', 'admin'].includes(this.sec) && !S.session; },
       forbidden() { return (this.sec === 'admin' || this.page === 'overview') && !H.isAdmin(); },
       sub() {
@@ -17,17 +17,17 @@
         return [];
       },
       view() {
-        return { survey: 'survey-view', import: 'import-view', dashboard: 'dashboard-view', inventory: 'inventory-view', actions: 'actions-view', overview: 'overview-view', login: 'login-view' }[this.page] || 'survey-view';
+        return { home: 'home-view', survey: 'survey-view', import: 'import-view', dashboard: 'dashboard-view', inventory: 'inventory-view', actions: 'actions-view', overview: 'overview-view', login: 'login-view' }[this.page] || 'survey-view';
       }
     },
     methods: {
       setLang(l) { S.lang = l; try { localStorage.setItem('hrdd_lang', l); } catch (e) {} document.documentElement.lang = { tc: 'zh-Hant', sc: 'zh-Hans', en: 'en' }[l]; },
-      async logout() { await S.store.logout(); S.session = null; H.go('/survey'); }
+      async logout() { await S.store.logout(); S.session = null; H.go('/home'); }
     },
     watch: { needLogin: { immediate: true, handler(v) { if (v) S.after = S.route; } } },
     template: `
     <header class="top"><div class="top-in">
-      <div class="brand">{{t('app.title')}}<small>{{t('app.subtitle')}}</small></div>
+      <a class="brand" href="#/home">{{t('app.title')}}<small>{{t('app.subtitle')}}</small></a>
       <nav class="mainnav">
         <a :class="{on:sec==='dd'}" href="#/survey">{{t('nav.dd')}}</a>
         <a :class="{on:sec==='rm'}" href="#/dashboard">{{t('nav.rm')}}</a>
@@ -68,7 +68,7 @@
     S.lang = lang;
     const act = S.cfg.cycles.find(c => c.active) || S.cfg.cycles[S.cfg.cycles.length - 1];
     S.cycle = act ? act.id : null;
-    const sync = () => { S.route = (location.hash || '#/survey').slice(1); };
+    const sync = () => { S.route = (location.hash || '#/home').slice(1); };
     window.addEventListener('hashchange', sync); sync();
 
     const app = createApp(Root);
