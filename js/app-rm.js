@@ -48,7 +48,7 @@
         return this.qs.filter(q => agg[q.id]).map(q => ({ no: q.no, p: agg[q.id].p, s: agg[q.id].s }));
       },
       svg() {
-        return M.renderSVG({ points: this.items, compare: this.cmpItems, zones: S.cfg.topic.zones, colors: S.cfg.topic.zoneColors, zoneLabels: ZL(), xLabel: H.t('dash.sev'), yLabel: H.t('dash.prob'), width: 640, highlight: this.focus });
+        return M.renderSVG({ points: this.items, compare: this.cmpItems, zones: S.cfg.topic.zones, colors: S.cfg.topic.zoneColors, zoneLabels: ZL(), xLabel: H.t('dash.sev'), yLabel: H.t('dash.prob'), width: 640, highlight: this.focus, theme: S.theme });
       },
       invited() {
         const inv = (S.cfg.invitees || {})[S.cycle] || {};

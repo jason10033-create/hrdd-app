@@ -65,32 +65,36 @@
     const H = mt + plot + mb + (legendRows ? 18 + legendRows * 24 : 0);
     const cell = plot / 10;
     const X = s => ml + (s / 5) * plot, Y = p => mt + plot - (p / 5) * plot;
+    // Light palette for print/exports; dark palette when the site is in dark mode (o.theme === 'dark').
+    const K = o.theme === 'dark'
+      ? { bg: '#172025', ink: '#E2E8EB', muted: '#98A6AF', labelBg: '#0E1417', labelL: '#C7D0D5', labelHM: '#9EE3DA', cmp: '#C7D0D5', ring: '#F2EFEA', zones: { H: '#2F9C95', M: '#245E59', L: '#2C373D' } }
+      : { bg: '#ffffff', ink: '#1f2a33', muted: '#5b6670', labelBg: '#ffffff', labelL: '#5b6670', labelHM: '#1f6f69', cmp: '#46525c', ring: '#ffffff', zones: o.colors };
     let g = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family='${FONT}'>`;
-    g += `<rect width="${W}" height="${H}" fill="#ffffff"/>`;
-    if (o.title) g += `<text x="${ml}" y="24" font-size="16" font-weight="700" fill="#1f2a33">${esc(o.title)}</text>`;
+    g += `<rect width="${W}" height="${H}" fill="${K.bg}"/>`;
+    if (o.title) g += `<text x="${ml}" y="24" font-size="16" font-weight="700" fill="${K.ink}">${esc(o.title)}</text>`;
     for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) {
-      g += `<rect x="${(ml + c * cell).toFixed(1)}" y="${(mt + r * cell).toFixed(1)}" width="${cell.toFixed(1)}" height="${cell.toFixed(1)}" fill="${o.colors[o.zones[r][c]]}" stroke="#ffffff" stroke-width="1.5"/>`;
+      g += `<rect x="${(ml + c * cell).toFixed(1)}" y="${(mt + r * cell).toFixed(1)}" width="${cell.toFixed(1)}" height="${cell.toFixed(1)}" fill="${K.zones[o.zones[r][c]]}" stroke="${K.bg}" stroke-width="1.5"/>`;
     }
     const lc = zoneLabelCells(o.zones);
     Object.keys(lc).forEach(z => {
       const cx = ml + (lc[z].c + 0.5) * cell, cy = mt + (lc[z].r + 0.5) * cell;
       const label = o.zoneLabels[z] || z, tw = label.length * (/[　-鿿]/.test(label) ? 13 : 7) + 14;
-      g += `<rect x="${(cx - tw / 2).toFixed(1)}" y="${(cy - 11).toFixed(1)}" width="${tw}" height="22" rx="3" fill="#ffffff" fill-opacity="0.85"/>`;
-      g += `<text x="${cx.toFixed(1)}" y="${(cy + 4.5).toFixed(1)}" text-anchor="middle" font-size="12.5" font-weight="600" fill="${z === 'L' ? '#5b6670' : '#1f6f69'}">${esc(label)}</text>`;
+      g += `<rect x="${(cx - tw / 2).toFixed(1)}" y="${(cy - 11).toFixed(1)}" width="${tw}" height="22" rx="3" fill="${K.labelBg}" fill-opacity="0.85"/>`;
+      g += `<text x="${cx.toFixed(1)}" y="${(cy + 4.5).toFixed(1)}" text-anchor="middle" font-size="12.5" font-weight="600" fill="${z === 'L' ? K.labelL : K.labelHM}">${esc(label)}</text>`;
     });
     for (let i = 0; i <= 10; i++) {
       const v = (i * 0.5).toFixed(1);
-      g += `<text x="${ml - 8}" y="${(Y(i * 0.5) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="#5b6670">${v}</text>`;
-      g += `<text x="${X(i * 0.5).toFixed(1)}" y="${mt + plot + 17}" text-anchor="middle" font-size="11" fill="#5b6670">${v}</text>`;
+      g += `<text x="${ml - 8}" y="${(Y(i * 0.5) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="${K.muted}">${v}</text>`;
+      g += `<text x="${X(i * 0.5).toFixed(1)}" y="${mt + plot + 17}" text-anchor="middle" font-size="11" fill="${K.muted}">${v}</text>`;
     }
-    g += `<text x="${ml + plot / 2}" y="${mt + plot + 40}" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2a33">${esc(o.xLabel)} →</text>`;
-    g += `<text transform="translate(16 ${mt + plot / 2}) rotate(-90)" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2a33">${esc(o.yLabel)} →</text>`;
+    g += `<text x="${ml + plot / 2}" y="${mt + plot + 40}" text-anchor="middle" font-size="13" font-weight="600" fill="${K.ink}">${esc(o.xLabel)} →</text>`;
+    g += `<text transform="translate(16 ${mt + plot / 2}) rotate(-90)" text-anchor="middle" font-size="13" font-weight="600" fill="${K.ink}">${esc(o.yLabel)} →</text>`;
 
     const R = 11;
     (o.compare || []).forEach(c => {
       const x = X(c.s), y = Y(c.p);
-      g += `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${R - 1}" fill="#ffffff" fill-opacity="0.6" stroke="#46525c" stroke-width="1.5" stroke-dasharray="3 2"/>`;
-      g += `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#46525c">${c.no}</text></g>`;
+      g += `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${R - 1}" fill="${K.bg}" fill-opacity="0.6" stroke="${K.cmp}" stroke-width="1.5" stroke-dasharray="3 2"/>`;
+      g += `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${K.cmp}">${c.no}</text></g>`;
     });
 
     // Points sit exactly on their (S, P) coordinates. Items sharing the same coordinate are drawn as one
@@ -107,19 +111,19 @@
       if (gr.items.length === 1) {
         const p = gr.items[0], hi = o.highlight === p.id;
         g += `<g class="pt" data-q="${p.id}" style="cursor:pointer"><title>${esc(p.tip || '')}</title>`;
-        g += `<circle cx="${x}" cy="${y}" r="${hi ? R + 3 : R}" fill="#E8762D" stroke="${hi ? '#1f2a33' : '#ffffff'}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
+        g += `<circle cx="${x}" cy="${y}" r="${hi ? R + 3 : R}" fill="#E8762D" stroke="${hi ? K.ink : K.ring}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
         g += `<text x="${x}" y="${(gr.y + 4.2).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff" pointer-events="none">${p.no}</text></g>`;
         return;
       }
       const hi = gr.items.some(p => p.id === o.highlight), n = gr.items.length, nos = gr.items.map(p => p.no).join('·');
       g += `<g class="pt cluster" data-qs="${gr.items.map(p => p.id).join(',')}" style="cursor:pointer"><title>${esc(gr.items.map(p => p.tip || p.no).join('\n'))}</title>`;
       g += `<circle cx="${x}" cy="${y}" r="${R + 5}" fill="none" stroke="#C0392B" stroke-width="2" stroke-dasharray="4 2.5"/>`;
-      g += `<circle cx="${x}" cy="${y}" r="${R + 1}" fill="#B9461B" stroke="${hi ? '#1f2a33' : '#ffffff'}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
+      g += `<circle cx="${x}" cy="${y}" r="${R + 1}" fill="#B9461B" stroke="${hi ? K.ink : K.ring}" stroke-width="${hi ? 2.5 : 1.5}"/>`;
       g += `<text x="${x}" y="${(gr.y + 4.2).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff" pointer-events="none">×${n}</text>`;
       if (o.clusterLabels) {
         // static exports cannot be clicked, so spell out the item numbers next to the cluster
         const tw = nos.length * 7 + 12, lx = Math.min(gr.x + R + 8, ml + plot - tw), ly = gr.y + R + 4;
-        g += `<rect x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" width="${tw}" height="18" rx="4" fill="#ffffff" stroke="#C0392B"/>`;
+        g += `<rect x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" width="${tw}" height="18" rx="4" fill="${K.labelBg}" stroke="#C0392B"/>`;
         g += `<text x="${(lx + tw / 2).toFixed(1)}" y="${(ly + 13).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#C0392B" pointer-events="none">${nos}</text>`;
       }
       g += '</g>';
@@ -130,7 +134,7 @@
       o.legend.forEach((l, i) => {
         const cx = ml + (i % 3) * colW + 10, cy = mt + plot + mb + 18 + Math.floor(i / 3) * 24;
         g += `<circle cx="${cx}" cy="${cy}" r="9" fill="#E8762D"/><text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">${l.no}</text>`;
-        g += `<text x="${cx + 16}" y="${cy + 4.5}" font-size="12.5" fill="#1f2a33">${esc(l.name)}</text>`;
+        g += `<text x="${cx + 16}" y="${cy + 4.5}" font-size="12.5" fill="${K.ink}">${esc(l.name)}</text>`;
       });
     }
     return g + '</svg>';
