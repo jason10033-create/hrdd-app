@@ -11,14 +11,15 @@
   const TABS = [
     { sec: 'adm.sec.dd', items: ['survey', 'cycles', 'responses', 'texts-dd'] },
     { sec: 'adm.sec.rm', items: ['org', 'recs', 'zones', 'texts-rm'] },
+    { sec: 'adm.sec.site', items: ['home'] },
     { sec: 'adm.sec.sys', items: ['audit', 'backup'] }
   ];
-  const TAB_LABEL = { survey: 'adm.survey', cycles: 'adm.cycles', responses: 'adm.responses', 'texts-dd': 'adm.textsDd', org: 'adm.org', recs: 'adm.recs', zones: 'adm.zones', 'texts-rm': 'adm.textsRm', audit: 'adm.audit', backup: 'adm.backup' };
+  const TAB_LABEL = { survey: 'adm.survey', cycles: 'adm.cycles', responses: 'adm.responses', 'texts-dd': 'adm.textsDd', org: 'adm.org', recs: 'adm.recs', zones: 'adm.zones', 'texts-rm': 'adm.textsRm', audit: 'adm.audit', backup: 'adm.backup', home: 'adm.home' };
 
   C.AdminView = {
     props: ['tab'],
     data() { return { TABS, TAB_LABEL }; },
-    computed: { comp() { return { survey: 'adm-survey', cycles: 'adm-cycles', responses: 'adm-responses', 'texts-dd': 'adm-texts', 'texts-rm': 'adm-texts', org: 'adm-org', recs: 'adm-recs', zones: 'adm-zones', audit: 'adm-audit', backup: 'adm-backup' }[this.tab] || 'adm-survey'; } },
+    computed: { comp() { return { survey: 'adm-survey', cycles: 'adm-cycles', responses: 'adm-responses', 'texts-dd': 'adm-texts', 'texts-rm': 'adm-texts', org: 'adm-org', recs: 'adm-recs', zones: 'adm-zones', audit: 'adm-audit', backup: 'adm-backup', home: 'adm-home' }[this.tab] || 'adm-survey'; } },
     template: `<div class="admin"><nav class="anav"><template v-for="g in TABS" :key="g.sec"><h5>{{t(g.sec)}}</h5>
       <a v-for="i in g.items" :key="i" :href="'#/admin/'+i" :class="{on:tab===i}">{{t(TAB_LABEL[i])}}</a></template></nav>
       <div><component :is="comp" :key="tab" :kind="tab"></component></div></div>`
@@ -134,7 +135,7 @@
     data() { return { ov: H.clone(S.cfg.i18n || {}), q: '' }; },
     computed: {
       keys() {
-        const pre = this.kind === 'texts-rm' ? ['nav.', 'dash.', 'rm.'] : ['app.', 'home.', 'nav.', 'common.', 'dd.', 'imp.'];
+        const pre = this.kind === 'texts-rm' ? ['nav.', 'dash.', 'rm.'] : ['app.', 'nav.', 'common.', 'dd.', 'imp.'];
         return Object.keys(window.HRDD_I18N).filter(k => pre.some(p => k.startsWith(p)))
           .filter(k => !this.q || (k + JSON.stringify(window.HRDD_I18N[k]) + JSON.stringify(this.ov[k] || '')).toLowerCase().includes(this.q.toLowerCase()));
       }
@@ -245,6 +246,70 @@
           <div><h3>{{t('adm.tiers')}}</h3><label v-for="(v,i) in urg.tiers" :key="i" class="row small"><span class="badge" :class="'t-'+i">{{t('rm.tier.'+i)}}</span> ≥ <input class="input" type="number" style="width:80px" v-model.number="urg.tiers[i]"></label></div></div></div></div>`
   };
 
+
+  /* ---- home page designer: section order / visibility / size, texts, live preview ---- */
+  C.AdmHome = {
+    data() {
+      const HD = window.HRDD_HOME;
+      const d = H.clone(S.cfg.home || HD.HOME_DEFAULT);
+      HD.HOME_DEFAULT.sections.forEach(s => { if (!d.sections.some(x => x.id === s.id)) d.sections.push(H.clone(s)); });
+      d.texts = d.texts || {};
+      Object.values(HD.HOME_TEXT_KEYS).flat().forEach(k => { if (!d.texts[k]) d.texts[k] = {}; });
+      return { draft: d, keys: HD.HOME_TEXT_KEYS, mobile: false, k: 0.5, pvH: 300, ro: null };
+    },
+    mounted() {
+      this.ro = new ResizeObserver(() => this.fit());
+      this.ro.observe(this.$refs.frame);
+      this.fit();
+    },
+    beforeUnmount() { if (this.ro) this.ro.disconnect(); },
+    watch: { draft: { deep: true, handler() { this.$nextTick(this.fit); } }, mobile() { this.$nextTick(this.fit); }, 'S.lang'() { this.$nextTick(this.fit); } },
+    methods: {
+      fit() {
+        const f = this.$refs.frame, inner = this.$refs.inner; if (!f || !inner) return;
+        this.k = Math.min(1, f.clientWidth / inner.offsetWidth);
+        this.pvH = Math.ceil(inner.offsetHeight * this.k);
+      },
+      secName(id) { return H.t({ hero: 'adm.secHero', loop: 'adm.secLoop', banners: 'adm.secBanners' }[id]); },
+      move(i, d) { const a = this.draft.sections, j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; },
+      def(k) { return H.t(k); },
+      clean() {
+        const out = H.clone(this.draft), texts = {};
+        Object.keys(out.texts).forEach(k => { const x = {}; ['tc', 'sc', 'en'].forEach(l => { if (out.texts[k][l]) x[l] = out.texts[k][l]; }); if (Object.keys(x).length) texts[k] = x; });
+        out.texts = texts; return out;
+      },
+      save() { saveCfg('home', this.clean()); },
+      reset() {
+        if (!confirm(H.t('adm.restoreConfirm'))) return;
+        const HD = window.HRDD_HOME, d = H.clone(HD.HOME_DEFAULT);
+        Object.values(HD.HOME_TEXT_KEYS).flat().forEach(k => { d.texts[k] = {}; });
+        this.draft = d;
+      }
+    },
+    template: `<div class="designer">
+      <div>
+        <div class="card"><div class="row"><h2 class="grow" style="margin:0">{{t('adm.home')}}</h2><button class="btn sm" @click="reset">↺ {{t('adm.resetHome')}}</button><button class="btn primary" @click="save">{{t('common.save')}}</button></div>
+          <h3>{{t('adm.homeSections')}}</h3>
+          <div v-for="(s,i) in draft.sections" :key="s.id" class="sec-row">
+            <button class="btn sm" @click="move(i,-1)" :disabled="i===0">↑</button><button class="btn sm" @click="move(i,1)" :disabled="i===draft.sections.length-1">↓</button>
+            <b>{{i+1}}. {{secName(s.id)}}</b>
+            <label class="small"><input type="checkbox" v-model="s.show"> {{t('adm.show')}}</label>
+            <span class="small muted">{{t('adm.size')}}</span><input type="range" min="60" max="150" step="5" v-model.number="s.size"><span class="small" style="width:42px;text-align:right">{{s.size}}%</span>
+          </div></div>
+        <div class="card"><h2>{{t('adm.homeTexts')}}</h2>
+          <template v-for="sec in draft.sections" :key="sec.id"><h3>{{secName(sec.id)}}</h3>
+            <div v-for="k in keys[sec.id]" :key="k" style="margin-bottom:10px"><div class="small muted">{{k}} · {{t('adm.default')}}：{{def(k)}}</div><ml-input v-model="draft.texts[k]" :area="k==='home.lead'"></ml-input></div>
+          </template></div>
+      </div>
+      <div class="pv-wrap"><div class="card">
+        <div class="row" style="margin-bottom:10px"><h2 class="grow" style="margin:0">{{t('adm.preview')}}</h2>
+          <div class="chips"><button class="chip" :class="{on:!mobile}" @click="mobile=false">{{t('adm.desktop')}}</button><button class="chip" :class="{on:mobile}" @click="mobile=true">{{t('adm.mobile')}}</button></div></div>
+        <div ref="frame" class="pv-frame" :class="{mobile}" :style="{height: pvH+'px'}">
+          <div ref="inner" class="pv-inner" :style="{transform: 'scale('+k+')'}"><home-view :draft="draft" :mobile="mobile"></home-view></div>
+        </div>
+        <p class="small muted" style="margin:8px 0 0">{{t('adm.previewHint')}}</p></div></div>
+    </div>`
+  };
   /* ---- audit log ---- */
   C.AdmAudit = {
     data() { return { rows: [] }; },

@@ -22,6 +22,7 @@
     },
     methods: {
       setLang(l) { S.lang = l; try { localStorage.setItem('hrdd_lang', l); } catch (e) {} document.documentElement.lang = { tc: 'zh-Hant', sc: 'zh-Hans', en: 'en' }[l]; },
+      toggleTheme() { S.theme = S.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = S.theme; try { localStorage.setItem('hrdd_theme', S.theme); } catch (e) {} },
       async logout() { await S.store.logout(); S.session = null; H.go('/home'); }
     },
     watch: { needLogin: { immediate: true, handler(v) { if (v) S.after = S.route; } } },
@@ -35,6 +36,7 @@
       </nav>
       <div class="tools">
         <select v-if="S.cfg.cycles.length>1" v-model="S.cycle" :title="t('common.cycle')"><option v-for="c in S.cfg.cycles" :key="c.id" :value="c.id">{{c.name}}</option></select>
+        <button class="theme-btn" @click="toggleTheme" :title="S.theme==='dark' ? t('common.themeLight') : t('common.themeDark')" :aria-label="S.theme==='dark' ? t('common.themeLight') : t('common.themeDark')">{{ S.theme==='dark' ? '☀️' : '🌙' }}</button>
         <div class="langs"><button v-for="l in LANGS" :key="l.id" :class="{on:S.lang===l.id}" @click="setLang(l.id)">{{l.label}}</button></div>
         <template v-if="S.session"><span class="small">{{ S.session.role==='admin' ? t('common.admin') : H.unitName(S.session.unit) }}</span><button @click="logout">{{t('common.logout')}}</button></template>
         <button v-else @click="S.after=S.route; H.go('/login')">{{t('common.login')}}</button>
@@ -66,6 +68,9 @@
     let lang = null; try { lang = localStorage.getItem('hrdd_lang'); } catch (e) {}
     if (!lang) { const n = (navigator.language || '').toLowerCase(); lang = n.startsWith('zh') ? (/cn|sg|hans/.test(n) ? 'sc' : 'tc') : 'en'; }
     S.lang = lang;
+    let theme = null; try { theme = localStorage.getItem('hrdd_theme'); } catch (e) {}
+    if (!theme) theme = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    S.theme = theme; document.documentElement.dataset.theme = theme;
     const act = S.cfg.cycles.find(c => c.active) || S.cfg.cycles[S.cfg.cycles.length - 1];
     S.cycle = act ? act.id : null;
     const sync = () => { S.route = (location.hash || '#/home').slice(1); };
