@@ -54,7 +54,14 @@
     const store = H.S.store = markRaw(window.HRDD_createStore());
     S.mode = store.mode;
     try { S.cfg = await store.init(); }
-    catch (e) { document.getElementById('app').innerHTML = '<div class="boot">Failed to load: ' + (e.message || e) + '</div>'; return; }
+    catch (e) {
+      // Usually the free Supabase project has been paused after a week without traffic.
+      document.getElementById('app').innerHTML = '<div class="card login" style="margin-top:60px"><h2>無法連線到資料庫 / Cannot reach the database</h2>' +
+        '<p>資料庫暫時無法連線，可能是 Supabase 專案已自動暫停。請通知系統管理者到 Supabase 後台恢復專案（Restore project）。</p>' +
+        '<p>The database is unreachable – the Supabase project may have been paused. Please ask the administrator to restore it.</p>' +
+        '<p class="muted small">' + String(e.message || e).replace(/</g, '&lt;') + '</p></div>';
+      return;
+    }
     S.session = store.getSession();
     let lang = null; try { lang = localStorage.getItem('hrdd_lang'); } catch (e) {}
     if (!lang) { const n = (navigator.language || '').toLowerCase(); lang = n.startsWith('zh') ? (/cn|sg|hans/.test(n) ? 'sc' : 'tc') : 'en'; }
