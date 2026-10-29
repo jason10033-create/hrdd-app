@@ -42,7 +42,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .langs { display: flex; border: 1px solid rgba(255,255,255,.3); border-radius: 6px; overflow: hidden; }
 .langs button { border: 0; border-radius: 0; background: transparent; padding: 4px 9px; }
 .langs button.on { background: #fff; color: #1F6F69; font-weight: 700; }
-.theme-btn { min-width: 34px; }
+.themes button { font-size: 14px; line-height: 1.2; opacity: .55; } .themes button.on { opacity: 1; }
 .subnav { background: var(--card); border-bottom: 1px solid var(--line); }
 .subnav-in { max-width: 1280px; margin: 0 auto; padding: 0 16px; display: flex; gap: 2px; overflow-x: auto; }
 .subnav a { padding: 11px 14px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }

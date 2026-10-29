@@ -11,15 +11,15 @@
   const TABS = [
     { sec: 'adm.sec.dd', items: ['survey', 'cycles', 'responses', 'texts-dd'] },
     { sec: 'adm.sec.rm', items: ['org', 'recs', 'zones', 'texts-rm'] },
-    { sec: 'adm.sec.site', items: ['home'] },
+    { sec: 'adm.sec.site', items: ['home', 'texts-top'] },
     { sec: 'adm.sec.sys', items: ['audit', 'backup'] }
   ];
-  const TAB_LABEL = { survey: 'adm.survey', cycles: 'adm.cycles', responses: 'adm.responses', 'texts-dd': 'adm.textsDd', org: 'adm.org', recs: 'adm.recs', zones: 'adm.zones', 'texts-rm': 'adm.textsRm', audit: 'adm.audit', backup: 'adm.backup', home: 'adm.home' };
+  const TAB_LABEL = { survey: 'adm.survey', cycles: 'adm.cycles', responses: 'adm.responses', 'texts-dd': 'adm.textsDd', org: 'adm.org', recs: 'adm.recs', zones: 'adm.zones', 'texts-rm': 'adm.textsRm', audit: 'adm.audit', backup: 'adm.backup', home: 'adm.home', 'texts-top': 'adm.textsTop' };
 
   C.AdminView = {
     props: ['tab'],
     data() { return { TABS, TAB_LABEL }; },
-    computed: { comp() { return { survey: 'adm-survey', cycles: 'adm-cycles', responses: 'adm-responses', 'texts-dd': 'adm-texts', 'texts-rm': 'adm-texts', org: 'adm-org', recs: 'adm-recs', zones: 'adm-zones', audit: 'adm-audit', backup: 'adm-backup', home: 'adm-home' }[this.tab] || 'adm-survey'; } },
+    computed: { comp() { return { survey: 'adm-survey', cycles: 'adm-cycles', responses: 'adm-responses', 'texts-dd': 'adm-texts', 'texts-rm': 'adm-texts', org: 'adm-org', recs: 'adm-recs', zones: 'adm-zones', audit: 'adm-audit', backup: 'adm-backup', home: 'adm-home', 'texts-top': 'adm-texts' }[this.tab] || 'adm-survey'; } },
     template: `<div class="admin"><nav class="anav"><template v-for="g in TABS" :key="g.sec"><h5>{{t(g.sec)}}</h5>
       <a v-for="i in g.items" :key="i" :href="'#/admin/'+i" :class="{on:tab===i}">{{t(TAB_LABEL[i])}}</a></template></nav>
       <div><component :is="comp" :key="tab" :kind="tab"></component></div></div>`
@@ -135,7 +135,9 @@
     data() { return { ov: H.clone(S.cfg.i18n || {}), q: '' }; },
     computed: {
       keys() {
+        const TOP = ['app.title', 'app.subtitle', 'nav.dd', 'nav.rm', 'nav.admin', 'nav.survey', 'nav.import', 'nav.dashboard', 'nav.inventory', 'nav.actions', 'nav.overview', 'common.admin', 'common.login', 'common.logout', 'common.themeLight', 'common.themeDark'];
         const pre = this.kind === 'texts-rm' ? ['nav.', 'dash.', 'rm.'] : ['app.', 'nav.', 'common.', 'dd.', 'imp.'];
+        if (this.kind === 'texts-top') return TOP.filter(k => !this.q || (k + JSON.stringify(window.HRDD_I18N[k]) + JSON.stringify(this.ov[k] || '')).toLowerCase().includes(this.q.toLowerCase()));
         return Object.keys(window.HRDD_I18N).filter(k => pre.some(p => k.startsWith(p)))
           .filter(k => !this.q || (k + JSON.stringify(window.HRDD_I18N[k]) + JSON.stringify(this.ov[k] || '')).toLowerCase().includes(this.q.toLowerCase()));
       }
@@ -160,12 +162,13 @@
         H.toast('✓ ' + n); ev.target.value = '';
       }
     },
-    template: `<div class="card"><div class="row"><h2 class="grow" style="margin:0">{{ kind==='texts-rm' ? t('adm.textsRm') : t('adm.textsDd') }}</h2>
+    template: `<div class="card"><div class="row"><h2 class="grow" style="margin:0">{{ kind==='texts-top' ? t('adm.textsTop') : kind==='texts-rm' ? t('adm.textsRm') : t('adm.textsDd') }}</h2>
         <input class="input" style="width:200px" v-model="q" :placeholder="t('common.search')">
         <button class="btn sm" @click="exportX">⬇ {{t('adm.exportTexts')}}</button>
         <label class="btn sm">⬆ {{t('adm.importTexts')}}<input type="file" accept=".xlsx" style="display:none" @change="importX"></label>
         <button class="btn primary" @click="save">{{t('common.save')}}</button></div>
-      <p class="small muted">{{t('adm.surveyTexts')}} / {{t('adm.question')}} → {{t('adm.survey')}}; {{t('adm.recs')}} → {{t('adm.recs')}}</p>
+      <p class="small muted" v-if="kind==='texts-top'">{{t('adm.textsTopHint')}}</p>
+      <p class="small muted" v-else>{{t('adm.surveyTexts')}} / {{t('adm.question')}} → {{t('adm.survey')}}; {{t('adm.recs')}} → {{t('adm.recs')}}</p>
       <table class="t small"><thead><tr><th>{{t('adm.key')}}</th><th>繁</th><th>简</th><th>EN</th></tr></thead>
         <tbody><tr v-for="k in keys" :key="k"><td class="muted" style="width:150px">{{k}}</td>
           <td v-for="l in ['tc','sc','en']" :key="l"><textarea class="input" rows="1" :placeholder="def(k,l)" :value="get(k,l)" @input="set(k,l,$event.target.value)" style="min-height:34px"></textarea></td></tr></tbody></table></div>`,

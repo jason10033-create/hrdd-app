@@ -184,6 +184,8 @@
 
     // admin
     ['adm.sec.site', '網站', '网站', 'Site'],
+    ['adm.textsTop', '頂部導覽列文字', '顶部导航栏文字', 'Top bar text'],
+    ['adm.textsTopHint', '區域名稱（例如 MAT 亞太）請到「組織與密碼」修改。', '区域名称（例如 MAT 亚太）请到「组织与密码」修改。', 'Region names (e.g. MAT APAC) are edited under Organization & passwords.'],
     ['adm.home', '首頁設計', '首页设计', 'Home page design'],
     ['adm.homeSections', '區塊順序、顯示與大小', '区块顺序、显示与大小', 'Section order, visibility & size'],
     ['adm.homeTexts', '首頁文字', '首页文字', 'Home page text'],
