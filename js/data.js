@@ -132,6 +132,33 @@
       this._save(); this.log('restore', {});
     }
     async resetDemo() { const s = this.session; this.db = await this._fresh(); this._save(); this.session = s; }
+    // ---- evidence files (IndexedDB; localStorage is too small for 10 MB) ----
+    _idb() {
+      if (this._db) return this._db;
+      this._db = new Promise((res, rej) => {
+        const q = indexedDB.open('hrdd_files', 1);
+        q.onupgradeneeded = () => q.result.createObjectStore('files', { keyPath: 'id' });
+        q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+      });
+      return this._db;
+    }
+    async _tx(mode, fn) {
+      const db = await this._idb();
+      return new Promise((res, rej) => { const t = db.transaction('files', mode), r = fn(t.objectStore('files')); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); });
+    }
+    async putFile(unit, cycle, file) {
+      if (!this._canUnit(unit)) throw new Error('forbidden');
+      const id = 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      await this._tx('readwrite', s => s.put({ id, blob: file }));
+      this.log('upload', { unit, cycle, name: file.name, size: file.size });
+      return { id, name: file.name, size: file.size, type: file.type || '', path: id };
+    }
+    async fileUrl(meta) {
+      const r = await this._tx('readonly', s => s.get(meta.path));
+      if (!r) throw new Error('missing');
+      return URL.createObjectURL(r.blob);
+    }
+    async removeFile(meta) { await this._tx('readwrite', s => s.delete(meta.path)); }
   }
 
   /* ---------------- Supabase store ----------------
@@ -255,6 +282,27 @@
       this.log('restore', {});
     }
     async resetDemo() { throw new Error('not available'); }
+    // ---- evidence files (Supabase Storage bucket "evidence"; created by supabase/schema.sql) ----
+    async putFile(unit, cycle, file) {
+      if (!this._canUnit(unit)) throw new Error('forbidden');
+      const id = 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      const ext = ((file.name.match(/\.([A-Za-z0-9]{1,8})$/) || [])[1] || '').toLowerCase();
+      // keys must be plain ASCII; the original (possibly Chinese) name is kept in the metadata
+      const path = `${String(cycle).replace(/[^A-Za-z0-9_-]/g, '_')}/${unit}/${id}${ext ? '.' + ext : ''}`;
+      const { error } = await this.sb.storage.from('evidence').upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+      if (error) throw error;
+      this.log('upload', { unit, cycle, name: file.name, size: file.size });
+      return { id, name: file.name, size: file.size, type: file.type || '', path };
+    }
+    async fileUrl(meta) {
+      const { data, error } = await this.sb.storage.from('evidence').createSignedUrl(meta.path, 600, { download: meta.name });
+      if (error) throw error;
+      return data.signedUrl;
+    }
+    async removeFile(meta) {
+      const { error } = await this.sb.storage.from('evidence').remove([meta.path]);
+      if (error) throw error;
+    }
   }
 
   window.HRDD_createStore = function () {

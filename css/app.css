@@ -251,3 +251,15 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: va
 .home.is-mobile .banners { grid-template-columns: 1fr; }
 .home.is-mobile .loop-steps { grid-template-columns: 1fr 1fr; }
 .home.is-mobile .loop-steps li::after { display: none; }
+
+/* dashboard matrix size control: width is a % of the card (50–100), never below 320px or above the card */
+.mtx-zoom { position: relative; margin: 8px auto 0; min-width: 320px; max-width: 100%; }
+.zoombar { display: inline-flex; align-items: center; gap: 6px; }
+.zoombar input[type=range] { width: 110px; accent-color: var(--brand-2); }
+
+/* plan description + evidence files */
+.planbox { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.filebox { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.fileitem { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+.fileitem a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+label.btn.disabled { opacity: .5; pointer-events: none; }

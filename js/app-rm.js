@@ -23,10 +23,14 @@
   /* ---------------- Dashboard ---------------- */
   C.DashboardView = {
     data() {
-      return { scope: H.isAdmin() ? 'RBU' : (S.session && S.session.unit) || 'RBU', stat: 'mean', compare: '', off: {}, focus: null, pick: null, data: null, loading: true };
+      let zoom = 100; try { zoom = +localStorage.getItem('hrdd_mtx_zoom') || 100; } catch (e) {}
+      return { scope: H.isAdmin() ? 'RBU' : (S.session && S.session.unit) || 'RBU', stat: 'mean', compare: '', off: {}, focus: null, pick: null, data: null, loading: true, zoom: Math.min(100, Math.max(50, zoom)) };
     },
     created() { this.load(); },
-    watch: { 'S.cycle'() { this.load(); }, scope() { this.off = {}; this.focus = null; this.pick = null; }, stat() { this.pick = null; } },
+    watch: {
+      'S.cycle'() { this.load(); }, scope() { this.off = {}; this.focus = null; this.pick = null; }, stat() { this.pick = null; },
+      zoom(v) { this.pick = null; try { localStorage.setItem('hrdd_mtx_zoom', String(v)); } catch (e) {} }
+    },
     computed: {
       qs() { return H.questions(); },
       scopes() { return H.allowedScopes(); },
@@ -76,7 +80,7 @@
         if (!g) { this.pick = null; return; }
         if (g.dataset.qs) {
           const box = e.currentTarget.getBoundingClientRect(), r = g.getBoundingClientRect();
-          this.pick = { qs: g.dataset.qs.split(','), left: r.right - box.left + 6, top: r.top - box.top };
+          this.pick = { qs: g.dataset.qs.split(','), left: r.right - box.left + 6, top: r.top - box.top, boxW: box.width };
           return;
         }
         this.pick = null; this.focus = this.focus === g.dataset.q ? null : g.dataset.q;
@@ -129,9 +133,12 @@
         <div class="grid2">
           <div class="card">
             <div class="row"><h2 class="grow" style="margin:0">{{t('dash.matrix')}} · {{H.unitName(scope)}}</h2>
-              <span v-if="hasAdjusted" class="badge t-2">{{t('dash.adjusted')}}</span></div>
-            <div style="position:relative;margin-top:8px"><div class="matrixbox" v-html="svg" @click="clickSvg"></div>
-              <div v-if="pick" class="pickpop" :style="{left: Math.min(pick.left, 420)+'px', top: pick.top+'px'}"><div class="small muted" style="margin-bottom:4px">{{t('dash.sameCoord')}} (P {{H.fmt(pickItems()[0] && pickItems()[0].p)}} / S {{H.fmt(pickItems()[0] && pickItems()[0].s)}})</div>
+              <span v-if="hasAdjusted" class="badge t-2">{{t('dash.adjusted')}}</span>
+              <span class="zoombar" :title="t('dash.size')"><button class="btn sm" :disabled="zoom<=50" @click="zoom=Math.max(50,zoom-10)">－</button>
+                <input type="range" min="50" max="100" step="5" v-model.number="zoom" :aria-label="t('dash.size')"><button class="btn sm" :disabled="zoom>=100" @click="zoom=Math.min(100,zoom+10)">＋</button>
+                <span class="small muted" style="width:38px;text-align:right">{{zoom}}%</span></span></div>
+            <div class="mtx-zoom" :style="{width: zoom+'%'}"><div class="matrixbox" v-html="svg" @click="clickSvg"></div>
+              <div v-if="pick" class="pickpop" :style="{left: Math.max(0, Math.min(pick.left, pick.boxW - 220))+'px', top: pick.top+'px'}"><div class="small muted" style="margin-bottom:4px">{{t('dash.sameCoord')}} (P {{H.fmt(pickItems()[0] && pickItems()[0].p)}} / S {{H.fmt(pickItems()[0] && pickItems()[0].s)}})</div>
                 <div v-for="i in pickItems()" :key="i.id" class="pickrow" @click="choose(i.id)"><span class="qno">{{i.no}}</span>{{tx(i.q.short)}}</div></div></div>
             <div class="legend"><div v-for="i in items" :key="i.id" @click="focus=i.id"><span class="qno">{{i.no}}</span>{{tx(i.q.short)}}</div></div>
             <div class="row" style="margin-top:12px"><button class="btn sm" @click="xlsx">⬇ {{t('dash.exportXlsx')}}</button><button class="btn sm" @click="png">⬇ {{t('dash.exportPng')}}</button><button class="btn sm" @click="svgFile">⬇ {{t('dash.exportSvg')}}</button></div>
@@ -161,6 +168,48 @@
         <div class="card" v-if="comments.length"><h2>{{t('dash.comments')}}</h2>
           <div v-for="(c,i) in comments" :key="i" class="comment"><span class="muted small">{{ c.q ? qShort(c.q) : t('dd.step.comment') }} · {{c.who}}</span><div>{{c.text}}</div></div></div>
       </template></div>`
+  };
+
+  /* ---------------- evidence files ---------------- */
+  const MAX_FILE = 10 * 1024 * 1024;
+  const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  async function openEvidence(f) {
+    try {
+      const url = await S.store.fileUrl(f);
+      const a = document.createElement('a');
+      a.href = url; a.download = f.name; a.rel = 'noopener'; a.target = '_blank';
+      document.body.appendChild(a); a.click(); a.remove();
+      if (url.startsWith('blob:')) setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { H.toast(H.t('rm.fileFail')); }
+  }
+
+  // Upload / list / remove evidence files for one plan item. The parent owns the data: it gets `add` / `remove` events.
+  C.FileBox = {
+    props: ['files', 'unit', 'cycle'], emits: ['add', 'remove'],
+    data() { return { busy: false }; },
+    methods: {
+      fmtSize,
+      open: openEvidence,
+      async pick(ev) {
+        const list = Array.from(ev.target.files || []); ev.target.value = '';
+        this.busy = true;
+        for (const f of list) {
+          if (f.size > MAX_FILE) { H.toast(`${f.name}: ${H.t('rm.fileTooBig')}`); continue; }
+          try { this.$emit('add', await S.store.putFile(this.unit, this.cycle, f)); }
+          catch (e) { H.toast(/bucket/i.test(String(e.message)) ? H.t('rm.fileNoBucket') : `${f.name}: ${H.t('rm.fileFail')}`); }
+        }
+        this.busy = false;
+      },
+      async del(f) {
+        if (!confirm(H.t('rm.confirmRemoveFile'))) return;
+        try { await S.store.removeFile(f); } catch (e) { if (!/missing|not found/i.test(String(e.message))) { H.toast(H.t('rm.fileFail')); return; } }
+        this.$emit('remove', f);
+      }
+    },
+    template: `<div class="filebox">
+      <div v-for="f in (files||[])" :key="f.id" class="fileitem"><a href="#" @click.prevent="open(f)" :title="f.name">📎 {{f.name}}</a><span class="muted small">{{fmtSize(f.size)}}</span><button class="btn sm danger" @click="del(f)" :title="t('common.delete')">✕</button></div>
+      <label class="btn sm" :class="{disabled: busy}">⬆ {{busy ? t('common.loading') : t('rm.attach')}}<input type="file" multiple style="display:none" :disabled="busy" @change="pick"></label>
+      <span class="muted small" style="margin-left:6px">{{t('rm.fileHint')}}</span></div>`
   };
 
   /* ---------------- shared inventory logic ---------------- */
@@ -212,20 +261,26 @@
         });
         return out;
       },
+      hasFiles() { return this.planned().some(p => (p.ref.files || []).length > 0); },
       async exportRows(kind) {
         const st = s => H.t('rm.st.' + s);
-        const head = ['#', H.t('dash.item'), H.t('dash.zone'), H.t('adm.dim'), H.t('adm.level'), H.t('adm.text'), H.t('rm.urgency'), H.t('rm.owner'), H.t('rm.due'), H.t('rm.progress'), H.t('rm.note')];
+        const names = x => ((x && x.files) || []).map(f => f.name).join('; ');
+        const withFiles = kind === 'actions'
+          ? this.hasFiles()
+          : Object.values(this.inv.items || {}).some(i => (i.files || []).length) || (this.inv.custom || []).some(c => (c.files || []).length);
+        const extra = x => withFiles ? [names(x)] : [];
+        const head = ['#', H.t('dash.item'), H.t('dash.zone'), H.t('adm.dim'), H.t('adm.level'), H.t('adm.text'), H.t('rm.urgency'), H.t('rm.owner'), H.t('rm.due'), H.t('rm.progress'), kind === 'actions' ? H.t('rm.planDesc') : H.t('rm.note')].concat(withFiles ? [H.t('rm.attachments')] : []);
         const rows = [head.map(h => ({ v: h, bold: true, fill: '#1F6F69', color: '#FFFFFF' }))];
         const lvl = l => ({ G: H.t('rm.groupTag'), M: H.zoneLabel('M'), H: H.t('rm.urgentTag'), L: H.zoneLabel('L'), C: H.t('rm.customTag') })[l];
         if (kind === 'actions') {
-          this.planned().forEach(p => rows.push([p.is.q.no, H.tx(p.is.q.short), H.zoneLabel(p.is.zone), H.tx(p.d.name), lvl(p.custom ? 'C' : p.rec.level), p.text, st('plan'), p.ref.owner || '', p.ref.due || '', H.t('rm.pr.' + (p.ref.progress || 'todo')), p.ref.note || '']));
+          this.planned().forEach(p => rows.push([p.is.q.no, H.tx(p.is.q.short), H.zoneLabel(p.is.zone), H.tx(p.d.name), lvl(p.custom ? 'C' : p.rec.level), p.text, st('plan'), p.ref.owner || '', p.ref.due || '', H.t('rm.pr.' + (p.ref.progress || 'todo')), { v: p.ref.note || '', wrap: true }].concat(extra(p.ref))));
         } else {
           this.sum.issues.forEach(is => this.dims.forEach(d => {
-            H.recsFor(is.q, d.id, is.zone).forEach(r => { const it = this.inv.items[r.id] || {}; rows.push([is.q.no, H.tx(is.q.short), { v: H.zoneLabel(is.zone), fill: S.cfg.topic.zoneColors[is.zone] }, H.tx(d.name), lvl(r.level), { v: H.tx(r.text), wrap: true }, st(this.status(r)), it.owner || '', it.due || '', it.progress ? H.t('rm.pr.' + it.progress) : '', it.note || '']); });
-            (this.inv.custom || []).filter(c => c.q === is.q.id && c.dim === d.id).forEach(c => rows.push([is.q.no, H.tx(is.q.short), H.zoneLabel(is.zone), H.tx(d.name), lvl('C'), { v: c.text, wrap: true }, st(c.status || 'none'), c.owner || '', c.due || '', c.progress ? H.t('rm.pr.' + c.progress) : '', c.note || '']));
+            H.recsFor(is.q, d.id, is.zone).forEach(r => { const it = this.inv.items[r.id] || {}; rows.push([is.q.no, H.tx(is.q.short), { v: H.zoneLabel(is.zone), fill: S.cfg.topic.zoneColors[is.zone] }, H.tx(d.name), lvl(r.level), { v: H.tx(r.text), wrap: true }, st(this.status(r)), it.owner || '', it.due || '', it.progress ? H.t('rm.pr.' + it.progress) : '', { v: it.note || '', wrap: true }].concat(extra(it))); });
+            (this.inv.custom || []).filter(c => c.q === is.q.id && c.dim === d.id).forEach(c => rows.push([is.q.no, H.tx(is.q.short), H.zoneLabel(is.zone), H.tx(d.name), lvl('C'), { v: c.text, wrap: true }, st(c.status || 'none'), c.owner || '', c.due || '', c.progress ? H.t('rm.pr.' + c.progress) : '', { v: c.note || '', wrap: true }].concat(extra(c))));
           }));
         }
-        const blob = await XLSXW.build({ sheets: [{ name: kind === 'actions' ? 'Action plan' : 'Inventory', cols: [5, 22, 12, 18, 14, 60, 12, 14, 12, 10, 30], rows }] });
+        const blob = await XLSXW.build({ sheets: [{ name: kind === 'actions' ? 'Action plan' : 'Inventory', cols: [5, 22, 12, 18, 14, 60, 12, 14, 12, 10, 40].concat(withFiles ? [30] : []), rows }] });
         M.download(blob, `${kind}_${this.unit}_${S.cycle}_${H.stamp()}.xlsx`);
       }
     }
@@ -237,7 +292,15 @@
     data() { return { openLow: {} }; },
     methods: {
       addCustom(q, dim) { this.inv.custom.push({ id: 'c' + Date.now(), q: q.id, dim, text: '', status: 'plan' }); this.queue(); },
-      delCustom(c) { this.inv.custom = this.inv.custom.filter(x => x !== c); this.queue(); },
+      delCustom(c) {
+        if ((c.files || []).length && !confirm(H.t('adm.deleteConfirm'))) return;
+        (c.files || []).forEach(f => S.store.removeFile(f).catch(() => {}));
+        this.inv.custom = this.inv.custom.filter(x => x !== c); this.queue();
+      },
+      addFile(rec, meta) { const it = this.item(rec); it.files = (it.files || []).concat([meta]); this.queue(); },
+      removeFile(rec, meta) { const it = this.item(rec); it.files = (it.files || []).filter(f => f.id !== meta.id); this.queue(); },
+      addCustomFile(c, meta) { c.files = (c.files || []).concat([meta]); this.queue(); },
+      removeCustomFile(c, meta) { c.files = (c.files || []).filter(f => f.id !== meta.id); this.queue(); },
       customs(q, dim) { return (this.inv.custom || []).filter(c => c.q === q.id && c.dim === dim); },
       meterColor(u) { return ['var(--danger)', 'var(--warn)', '#F4D03F', 'var(--ok)'][H.tierOf(u)]; }
     },
@@ -273,13 +336,19 @@
                 <div class="txt"><span v-if="r.level==='G'" class="tag g">{{t('rm.groupTag')}}</span><span v-if="r.level==='H'" class="tag h">{{t('rm.urgentTag')}}</span>{{tx(r.text)}} <span v-if="r.ref" class="muted small">({{r.ref}})</span></div>
                 <select :value="status(r)" @change="setField(r,'status',$event.target.value)"><option v-for="o in statusOptions(r)" :key="o" :value="o">{{t('rm.st.'+o)}}</option></select>
                 <div v-if="status(r)==='plan'" class="more"><input class="input" :placeholder="t('rm.owner')" :value="itm(r).owner" @input="setField(r,'owner',$event.target.value)"><input class="input" type="date" :value="itm(r).due" @input="setField(r,'due',$event.target.value)"></div>
-                <div v-if="status(r)!=='none' && status(r)!=='group'" class="more" style="grid-template-columns:1fr"><input class="input" :placeholder="t('rm.note')" :value="itm(r).note" @input="setField(r,'note',$event.target.value)"></div>
+                <div v-if="status(r)==='plan'" class="planbox">
+                  <textarea class="input" rows="2" :placeholder="t('rm.planDesc')" :value="itm(r).note" @input="setField(r,'note',$event.target.value)"></textarea>
+                  <file-box :files="itm(r).files" :unit="unit" :cycle="S.cycle" @add="addFile(r,$event)" @remove="removeFile(r,$event)"></file-box></div>
+                <div v-else-if="status(r)!=='none' && status(r)!=='group'" class="more" style="grid-template-columns:1fr"><input class="input" :placeholder="t('rm.note')" :value="itm(r).note" @input="setField(r,'note',$event.target.value)"></div>
               </div>
               <div v-for="c in customs(is.q,d.id)" :key="c.id" class="rec" :class="'st-'+c.status">
                 <span class="tag c">{{t('rm.customTag')}}</span>
                 <textarea class="input" rows="2" v-model="c.text" @input="queue" :placeholder="t('rm.customPlaceholder')"></textarea>
                 <div class="row"><select v-model="c.status" @change="queue"><option v-for="o in ['none','done','partial','plan']" :key="o" :value="o">{{t('rm.st.'+o)}}</option></select><span class="grow"></span><button class="btn sm danger" @click="delCustom(c)">{{t('common.delete')}}</button></div>
                 <div v-if="c.status==='plan'" class="more"><input class="input" :placeholder="t('rm.owner')" v-model="c.owner" @input="queue"><input class="input" type="date" v-model="c.due" @input="queue"></div>
+                <div v-if="c.status==='plan'" class="planbox">
+                  <textarea class="input" rows="2" :placeholder="t('rm.planDesc')" v-model="c.note" @input="queue"></textarea>
+                  <file-box :files="c.files" :unit="unit" :cycle="S.cycle" @add="addCustomFile(c,$event)" @remove="removeCustomFile(c,$event)"></file-box></div>
               </div>
               <button class="btn sm" style="margin-top:8px" @click="addCustom(is.q,d.id)">＋ {{t('rm.addCustom')}}</button>
             </div>
@@ -292,7 +361,9 @@
   C.ActionsView = {
     mixins: [InvMixin],
     methods: {
-      upd(p, k, v) { if (p.custom) { p.custom[k] = v; this.queue(); } else this.setField(p.rec, k, v); }
+      upd(p, k, v) { if (p.custom) { p.custom[k] = v; this.queue(); } else this.setField(p.rec, k, v); },
+      fmtSize,
+      open: openEvidence
     },
     template: `<div>
       <div class="card"><div class="row"><span class="muted">{{t('rm.chooseRegion')}}</span>
@@ -302,14 +373,16 @@
       <div v-if="loading" class="card empty">{{t('common.loading')}}</div>
       <div v-else class="card"><h2>{{t('nav.actions')}} · {{H.unitName(unit)}}</h2>
         <div v-if="!planned().length" class="empty">{{t('rm.noActions')}}</div>
-        <div v-else class="scroll"><table class="t"><thead><tr><th>{{t('dash.item')}}</th><th>{{t('adm.dim')}}</th><th style="width:38%">{{t('adm.text')}}</th><th>{{t('rm.owner')}}</th><th>{{t('rm.due')}}</th><th>{{t('rm.progress')}}</th></tr></thead>
+        <div v-else class="scroll"><table class="t"><thead><tr><th>{{t('dash.item')}}</th><th>{{t('adm.dim')}}</th><th style="width:26%">{{t('adm.text')}}</th><th style="width:22%">{{t('rm.planDesc')}}</th><th>{{t('rm.owner')}}</th><th>{{t('rm.due')}}</th><th>{{t('rm.progress')}}</th><th v-if="hasFiles()">{{t('rm.attachments')}}</th></tr></thead>
           <tbody><tr v-for="(p,i) in planned()" :key="i">
             <td><span class="qno">{{p.is.q.no}}</span>{{tx(p.is.q.short)}} <span class="badge" :class="'z-'+p.is.zone">{{zoneLabel(p.is.zone)}}</span></td>
             <td class="small">{{tx(p.d.name)}}</td>
             <td class="small"><span v-if="p.custom" class="tag c">{{t('rm.customTag')}}</span><span v-else-if="p.rec.level==='H'" class="tag h">{{t('rm.urgentTag')}}</span>{{p.text}}</td>
+            <td><textarea class="input" rows="2" :placeholder="t('rm.planDesc')" :value="p.ref.note" @input="upd(p,'note',$event.target.value)"></textarea></td>
             <td><input class="input" :value="p.ref.owner" @input="upd(p,'owner',$event.target.value)"></td>
             <td><input class="input" type="date" :value="p.ref.due" @input="upd(p,'due',$event.target.value)"></td>
             <td><select class="input" :value="p.ref.progress||'todo'" @change="upd(p,'progress',$event.target.value)"><option v-for="o in ['todo','doing','done']" :key="o" :value="o">{{t('rm.pr.'+o)}}</option></select></td>
+            <td v-if="hasFiles()" class="small"><div v-for="f in (p.ref.files||[])" :key="f.id" class="fileitem"><a href="#" @click.prevent="open(f)" :title="f.name">📎 {{f.name}}</a><span class="muted">{{fmtSize(f.size)}}</span></div></td>
           </tr></tbody></table></div></div></div>`
   };
 

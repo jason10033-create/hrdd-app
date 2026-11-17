@@ -94,3 +94,13 @@ insert into public.responses (id, cycle, unit, group_label, name, source, weight
 ('mhq2025-RM', '2026', 'MHQ', 'RM', 'RM', 'aggregate', 1, '2025 MHQ', '2025-10-01',
  '{"q1":{"p":1.3333333333,"s":2.5833333333},"q2":{"p":1.5833333333,"s":3.0833333333},"q3":{"p":1,"s":2.4166666667},"q4":{"p":1,"s":2.5},"q5":{"p":1.25,"s":2.3333333333},"q6":{"p":1.1666666667,"s":2.6666666667},"q7":{"p":1.5,"s":2.5833333333},"q8":{"p":1.1666666667,"s":2.1666666667},"q9":{"p":1.3333333333,"s":2.25}}')
 on conflict (id) do nothing;
+
+-- ---------- evidence files (計畫採行 uploads, max 10 MB each) ----------
+-- Private bucket; the app opens files through short-lived signed links.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('evidence', 'evidence', false, 10485760)
+on conflict (id) do update set file_size_limit = 10485760, public = false;
+
+drop policy if exists evidence_open on storage.objects;
+create policy evidence_open on storage.objects for all to anon, authenticated
+  using (bucket_id = 'evidence') with check (bucket_id = 'evidence');
