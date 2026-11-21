@@ -352,9 +352,34 @@
   };
 
   /* ---------------- Action plan ---------------- */
+  // Column order + default widths (px) of the action-plan table; users drag the header borders to resize.
+  const ACT_COLS = ['dash.item', 'adm.dim', 'adm.text', 'rm.planDesc', 'rm.owner', 'rm.due', 'rm.progress', 'rm.attachments'];
+  const ACT_DEF = [150, 100, 220, 220, 130, 140, 120, 210];
+  const loadCols = () => {
+    try { const a = JSON.parse(localStorage.getItem('hrdd_actions_cols') || 'null'); if (Array.isArray(a) && a.length === ACT_DEF.length && a.every(n => n >= 60 && n <= 900)) return a; } catch (e) {}
+    return ACT_DEF.slice();
+  };
+
   C.ActionsView = {
     mixins: [InvMixin],
+    data() { return { colW: loadCols(), ACT_COLS }; },
+    computed: { tableW() { return this.colW.reduce((a, b) => a + b, 0); } },
     methods: {
+      saveCols() { try { localStorage.setItem('hrdd_actions_cols', JSON.stringify(this.colW)); } catch (e) {} },
+      resetCols() { this.colW = ACT_DEF.slice(); this.saveCols(); },
+      resetCol(i) { this.colW[i] = ACT_DEF[i]; this.saveCols(); },
+      startResize(i, e) {
+        e.preventDefault();
+        const x0 = e.clientX, w0 = this.colW[i], el = e.currentTarget;
+        try { el.setPointerCapture(e.pointerId); } catch (err) {} el.classList.add('on');
+        const move = ev => { this.colW[i] = Math.round(Math.min(900, Math.max(60, w0 + ev.clientX - x0))); };
+        const up = () => {
+          el.classList.remove('on');
+          el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+          this.saveCols();
+        };
+        el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+      },
       upd(p, k, v) { if (p.custom) { p.custom[k] = v; this.queue(); } else this.setField(p.rec, k, v); },
       // evidence files live on the plan row; both regional heads and HQ see them here
       addPlanFile(p, meta) {
@@ -376,7 +401,10 @@
       <div v-if="loading" class="card empty">{{t('common.loading')}}</div>
       <div v-else class="card"><h2>{{t('nav.actions')}} · {{H.unitName(unit)}}</h2>
         <div v-if="!planned().length" class="empty">{{t('rm.noActions')}}</div>
-        <div v-else class="scroll"><table class="t"><thead><tr><th>{{t('dash.item')}}</th><th>{{t('adm.dim')}}</th><th style="width:26%">{{t('adm.text')}}</th><th style="width:22%">{{t('rm.planDesc')}}</th><th>{{t('rm.owner')}}</th><th>{{t('rm.due')}}</th><th>{{t('rm.progress')}}</th><th style="min-width:200px">{{t('rm.attachments')}}</th></tr></thead>
+        <div v-else>
+          <div class="row" style="margin-bottom:8px"><span class="small muted">↔ {{t('rm.dragHint')}}</span><span class="grow"></span><button class="btn sm" @click="resetCols">{{t('rm.resetCols')}}</button></div>
+          <div class="scroll"><table class="t resizable" :style="{width: tableW+'px'}"><colgroup><col v-for="(w,i) in colW" :key="i" :style="{width: w+'px'}"></colgroup>
+          <thead><tr><th v-for="(k,i) in ACT_COLS" :key="k">{{t(k)}}<span class="col-rs" :title="t('rm.dragTip')" @pointerdown="startResize(i,$event)" @dblclick="resetCol(i)"></span></th></tr></thead>
           <tbody><tr v-for="(p,i) in planned()" :key="i">
             <td><span class="qno">{{p.is.q.no}}</span>{{tx(p.is.q.short)}} <span class="badge" :class="'z-'+p.is.zone">{{zoneLabel(p.is.zone)}}</span></td>
             <td class="small">{{tx(p.d.name)}}</td>
@@ -386,7 +414,7 @@
             <td><input class="input" type="date" :value="p.ref.due" @input="upd(p,'due',$event.target.value)"></td>
             <td><select class="input" :value="p.ref.progress||'todo'" @change="upd(p,'progress',$event.target.value)"><option v-for="o in ['todo','doing','done']" :key="o" :value="o">{{t('rm.pr.'+o)}}</option></select></td>
             <td class="small"><file-box :files="p.ref.files" :unit="unit" :cycle="S.cycle" @add="addPlanFile(p,$event)" @remove="removePlanFile(p,$event)"></file-box></td>
-          </tr></tbody></table></div></div></div>`
+          </tr></tbody></table></div></div></div></div>`
   };
 
   /* ---------------- Cross-region overview (admin) ---------------- */

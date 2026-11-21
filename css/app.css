@@ -263,3 +263,11 @@ table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: va
 .fileitem { display: flex; align-items: center; gap: 8px; max-width: 100%; }
 .fileitem a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
 label.btn.disabled { opacity: .5; pointer-events: none; }
+
+/* resizable table columns (action plan): drag the right border of a header cell */
+table.t.resizable { table-layout: fixed; }
+table.t.resizable th, table.t.resizable td { overflow-wrap: anywhere; }
+table.t.resizable th { position: relative; padding-right: 14px; }
+.col-rs { position: absolute; right: 0; top: 0; bottom: 0; width: 12px; cursor: col-resize; touch-action: none; user-select: none; }
+.col-rs::after { content: ""; position: absolute; right: 4px; top: 18%; bottom: 18%; width: 3px; border-radius: 2px; background: var(--line-strong); opacity: .7; }
+.col-rs:hover::after, .col-rs.on::after { background: var(--brand-2); opacity: 1; }
