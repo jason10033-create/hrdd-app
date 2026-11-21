@@ -297,10 +297,6 @@
         (c.files || []).forEach(f => S.store.removeFile(f).catch(() => {}));
         this.inv.custom = this.inv.custom.filter(x => x !== c); this.queue();
       },
-      addFile(rec, meta) { const it = this.item(rec); it.files = (it.files || []).concat([meta]); this.queue(); },
-      removeFile(rec, meta) { const it = this.item(rec); it.files = (it.files || []).filter(f => f.id !== meta.id); this.queue(); },
-      addCustomFile(c, meta) { c.files = (c.files || []).concat([meta]); this.queue(); },
-      removeCustomFile(c, meta) { c.files = (c.files || []).filter(f => f.id !== meta.id); this.queue(); },
       customs(q, dim) { return (this.inv.custom || []).filter(c => c.q === q.id && c.dim === dim); },
       meterColor(u) { return ['var(--danger)', 'var(--warn)', '#F4D03F', 'var(--ok)'][H.tierOf(u)]; }
     },
@@ -337,8 +333,7 @@
                 <select :value="status(r)" @change="setField(r,'status',$event.target.value)"><option v-for="o in statusOptions(r)" :key="o" :value="o">{{t('rm.st.'+o)}}</option></select>
                 <div v-if="status(r)==='plan'" class="more"><input class="input" :placeholder="t('rm.owner')" :value="itm(r).owner" @input="setField(r,'owner',$event.target.value)"><input class="input" type="date" :value="itm(r).due" @input="setField(r,'due',$event.target.value)"></div>
                 <div v-if="status(r)==='plan'" class="planbox">
-                  <textarea class="input" rows="2" :placeholder="t('rm.planDesc')" :value="itm(r).note" @input="setField(r,'note',$event.target.value)"></textarea>
-                  <file-box :files="itm(r).files" :unit="unit" :cycle="S.cycle" @add="addFile(r,$event)" @remove="removeFile(r,$event)"></file-box></div>
+                  <textarea class="input" rows="2" :placeholder="t('rm.planDesc')" :value="itm(r).note" @input="setField(r,'note',$event.target.value)"></textarea></div>
                 <div v-else-if="status(r)!=='none' && status(r)!=='group'" class="more" style="grid-template-columns:1fr"><input class="input" :placeholder="t('rm.note')" :value="itm(r).note" @input="setField(r,'note',$event.target.value)"></div>
               </div>
               <div v-for="c in customs(is.q,d.id)" :key="c.id" class="rec" :class="'st-'+c.status">
@@ -347,8 +342,7 @@
                 <div class="row"><select v-model="c.status" @change="queue"><option v-for="o in ['none','done','partial','plan']" :key="o" :value="o">{{t('rm.st.'+o)}}</option></select><span class="grow"></span><button class="btn sm danger" @click="delCustom(c)">{{t('common.delete')}}</button></div>
                 <div v-if="c.status==='plan'" class="more"><input class="input" :placeholder="t('rm.owner')" v-model="c.owner" @input="queue"><input class="input" type="date" v-model="c.due" @input="queue"></div>
                 <div v-if="c.status==='plan'" class="planbox">
-                  <textarea class="input" rows="2" :placeholder="t('rm.planDesc')" v-model="c.note" @input="queue"></textarea>
-                  <file-box :files="c.files" :unit="unit" :cycle="S.cycle" @add="addCustomFile(c,$event)" @remove="removeCustomFile(c,$event)"></file-box></div>
+                  <textarea class="input" rows="2" :placeholder="t('rm.planDesc')" v-model="c.note" @input="queue"></textarea></div>
               </div>
               <button class="btn sm" style="margin-top:8px" @click="addCustom(is.q,d.id)">＋ {{t('rm.addCustom')}}</button>
             </div>
@@ -362,8 +356,17 @@
     mixins: [InvMixin],
     methods: {
       upd(p, k, v) { if (p.custom) { p.custom[k] = v; this.queue(); } else this.setField(p.rec, k, v); },
-      fmtSize,
-      open: openEvidence
+      // evidence files live on the plan row; both regional heads and HQ see them here
+      addPlanFile(p, meta) {
+        if (p.custom) p.custom.files = (p.custom.files || []).concat([meta]);
+        else { const it = this.item(p.rec); it.files = (it.files || []).concat([meta]); }
+        this.queue();
+      },
+      removePlanFile(p, meta) {
+        if (p.custom) p.custom.files = (p.custom.files || []).filter(f => f.id !== meta.id);
+        else { const it = this.item(p.rec); it.files = (it.files || []).filter(f => f.id !== meta.id); }
+        this.queue();
+      }
     },
     template: `<div>
       <div class="card"><div class="row"><span class="muted">{{t('rm.chooseRegion')}}</span>
@@ -373,7 +376,7 @@
       <div v-if="loading" class="card empty">{{t('common.loading')}}</div>
       <div v-else class="card"><h2>{{t('nav.actions')}} · {{H.unitName(unit)}}</h2>
         <div v-if="!planned().length" class="empty">{{t('rm.noActions')}}</div>
-        <div v-else class="scroll"><table class="t"><thead><tr><th>{{t('dash.item')}}</th><th>{{t('adm.dim')}}</th><th style="width:26%">{{t('adm.text')}}</th><th style="width:22%">{{t('rm.planDesc')}}</th><th>{{t('rm.owner')}}</th><th>{{t('rm.due')}}</th><th>{{t('rm.progress')}}</th><th v-if="hasFiles()">{{t('rm.attachments')}}</th></tr></thead>
+        <div v-else class="scroll"><table class="t"><thead><tr><th>{{t('dash.item')}}</th><th>{{t('adm.dim')}}</th><th style="width:26%">{{t('adm.text')}}</th><th style="width:22%">{{t('rm.planDesc')}}</th><th>{{t('rm.owner')}}</th><th>{{t('rm.due')}}</th><th>{{t('rm.progress')}}</th><th style="min-width:200px">{{t('rm.attachments')}}</th></tr></thead>
           <tbody><tr v-for="(p,i) in planned()" :key="i">
             <td><span class="qno">{{p.is.q.no}}</span>{{tx(p.is.q.short)}} <span class="badge" :class="'z-'+p.is.zone">{{zoneLabel(p.is.zone)}}</span></td>
             <td class="small">{{tx(p.d.name)}}</td>
@@ -382,7 +385,7 @@
             <td><input class="input" :value="p.ref.owner" @input="upd(p,'owner',$event.target.value)"></td>
             <td><input class="input" type="date" :value="p.ref.due" @input="upd(p,'due',$event.target.value)"></td>
             <td><select class="input" :value="p.ref.progress||'todo'" @change="upd(p,'progress',$event.target.value)"><option v-for="o in ['todo','doing','done']" :key="o" :value="o">{{t('rm.pr.'+o)}}</option></select></td>
-            <td v-if="hasFiles()" class="small"><div v-for="f in (p.ref.files||[])" :key="f.id" class="fileitem"><a href="#" @click.prevent="open(f)" :title="f.name">📎 {{f.name}}</a><span class="muted">{{fmtSize(f.size)}}</span></div></td>
+            <td class="small"><file-box :files="p.ref.files" :unit="unit" :cycle="S.cycle" @add="addPlanFile(p,$event)" @remove="removePlanFile(p,$event)"></file-box></td>
           </tr></tbody></table></div></div></div>`
   };
 

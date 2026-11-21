@@ -172,7 +172,7 @@
     ['rm.pr.done', '已完成', '已完成', 'Done'],
     ['rm.planDesc', '描述此計畫', '描述此计划', 'Describe this plan'],
     ['rm.attach', '上傳佐證文件', '上传佐证文件', 'Upload evidence'],
-    ['rm.attachments', '附件', '附件', 'Attachments'],
+    ['rm.attachments', '佐證文件', '佐证文件', 'Evidence files'],
     ['rm.fileHint', '單檔上限 10MB', '单个文件上限 10MB', 'Max 10 MB per file'],
     ['rm.fileTooBig', '檔案超過 10MB 上限', '文件超过 10MB 上限', 'File exceeds the 10 MB limit'],
     ['rm.fileFail', '檔案處理失敗，請稍後再試', '文件处理失败，请稍后再试', 'File operation failed, please try again'],
